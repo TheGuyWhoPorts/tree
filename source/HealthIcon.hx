@@ -2,6 +2,9 @@ package;
 
 import flixel.FlxSprite;
 import openfl.utils.Assets as OpenFlAssets;
+//auto sizing -lunar
+import flixel.graphics.FlxGraphic;
+import flixel.FlxG;
 
 using StringTools;
 
@@ -11,6 +14,8 @@ class HealthIcon extends FlxSprite
 	private var isOldIcon:Bool = false;
 	private var isPlayer:Bool = false;
 	private var char:String = '';
+	public var XOffset:Int = 0;
+	public var YOffset:Int = 0;
 
 	public function new(char:String = 'bf', isPlayer:Bool = false)
 	{
@@ -26,7 +31,7 @@ class HealthIcon extends FlxSprite
 		super.update(elapsed);
 
 		if (sprTracker != null)
-			setPosition(sprTracker.x + sprTracker.width + 12, sprTracker.y - 30);
+			setPosition((sprTracker.x + sprTracker.width + 10) + XOffset, (sprTracker.y - 30) + YOffset);
 	}
 
 	public function swapOldIcon() {
@@ -34,36 +39,32 @@ class HealthIcon extends FlxSprite
 		else changeIcon('bf');
 	}
 
-	private var iconOffsets:Array<Float> = [0, 0];
 	public function changeIcon(char:String) {
 		if(this.char != char) {
 			var name:String = 'icons/' + char;
 			if(!Paths.fileExists('images/' + name + '.png', IMAGE)) name = 'icons/icon-' + char; //Older versions of psych engine's support
 			if(!Paths.fileExists('images/' + name + '.png', IMAGE)) name = 'icons/icon-face'; //Prevents crash from missing icon
-			var file:Dynamic = Paths.image(name);
 
-			loadGraphic(file); //Load stupidly first for getting the file size
-			loadGraphic(file, true, Math.floor(width / 2), Math.floor(height)); //Then load it fr
-			iconOffsets[0] = (width - 150) / 2;
-			iconOffsets[1] = (width - 150) / 2;
-			updateHitbox();
-
+			var iconGraphic:FlxGraphic = FlxG.bitmap.add(Paths.image(name));
+			loadGraphic(iconGraphic, true, Std.int(iconGraphic.width / 2), iconGraphic.height); 
 			animation.add(char, [0, 1], 0, false, isPlayer);
 			animation.play(char);
 			this.char = char;
+
+			switch (this.char) 
+			{
+				case 'icon-tree' | 'tree':
+					this.YOffset = -23;
+					this.XOffset = -3;
+				case 'icon-treeevil' | 'treeevil':
+					this.YOffset = -42;
+			}
 
 			antialiasing = ClientPrefs.globalAntialiasing;
 			if(char.endsWith('-pixel')) {
 				antialiasing = false;
 			}
 		}
-	}
-
-	override function updateHitbox()
-	{
-		super.updateHitbox();
-		offset.x = iconOffsets[0];
-		offset.y = iconOffsets[1];
 	}
 
 	public function getCharacter():String {

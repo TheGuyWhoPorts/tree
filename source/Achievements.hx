@@ -6,40 +6,46 @@ import flixel.tweens.FlxTween;
 import flixel.group.FlxSpriteGroup;
 import flixel.util.FlxColor;
 import flixel.text.FlxText;
+import flixel.util.FlxSave;
 
-using StringTools;
+using StringTools; //ur mote
 
 class Achievements {
 	public static var achievementsStuff:Array<Dynamic> = [ //Name, Description, Achievement save tag, Hidden achievement
-		["Freaky on a Friday Night",	"Play on a Friday... Night.",						'friday_night_play',	 true],
-		["She Calls Me Daddy Too",		"Beat Week 1 on Hard with no Misses.",				'week1_nomiss',			false],
-		["No More Tricks",				"Beat Week 2 on Hard with no Misses.",				'week2_nomiss',			false],
-		["Call Me The Hitman",			"Beat Week 3 on Hard with no Misses.",				'week3_nomiss',			false],
-		["Lady Killer",					"Beat Week 4 on Hard with no Misses.",				'week4_nomiss',			false],
-		["Missless Christmas",			"Beat Week 5 on Hard with no Misses.",				'week5_nomiss',			false],
-		["Highscore!!",					"Beat Week 6 on Hard with no Misses.",				'week6_nomiss',			false],
-		["God Effing Damn It!",			"Beat Week 7 on Hard with no Misses.",				'week7_nomiss',			false],
-		["What a Funkin' Disaster!",	"Complete a Song with a rating lower than 20%.",	'ur_bad',				false],
-		["Perfectionist",				"Complete a Song with a rating of 100%.",			'ur_good',				false],
-		["Roadkill Enthusiast",			"Watch the Henchmen die over 100 times.",			'roadkill_enthusiast',	false],
-		["Oversinging Much...?",		"Hold down a note for 10 seconds.",					'oversinging',			false],
-		["Hyperactive",					"Finish a Song without going Idle.",				'hype',					false],
-		["Just the Two of Us",			"Finish a Song pressing only two keys.",			'two_keys',				false],
-		["Toaster Gamer",				"Have you tried to run the game on a toaster?",		'toastie',				false],
-		["Debugger",					"Beat the \"Test\" Stage from the Chart Editor.",	'debugger',				 true]
+		["Naughty Mode",	"You have unlocked Naughty mode in free play! good luck lmao",						'naughty',	 false],
+		["What",	  		"you beat Naughty mode. what..",						   							'what',	 	 false],
 	];
-	public static var achievementsMap:Map<String, Bool> = new Map<String, Bool>();
 
 	public static var henchmenDeath:Int = 0;
-	public static function unlockAchievement(name:String):Void {
-		FlxG.log.add('Completed achievement "' + name +'"');
-		achievementsMap.set(name, true);
-		FlxG.sound.play(Paths.sound('confirmMenu'), 0.7);
+
+	//Fuck it old system was ass made my own -lunar 
+
+	public static function unlockAchievement(name:String) {
+		for (i in 0...achievementsStuff.length) {
+			if (achievementsStuff[i][2] == name) {
+				switch (name) {
+					case 'naughty':
+						PreloadingState.unlockedAchv[0] = true;
+						FlxG.save.data.naughty = true;
+        				FlxG.save.flush();
+					case 'what':
+						PreloadingState.unlockedAchv[1] = true;
+						FlxG.save.data.what = true;
+        				FlxG.save.flush();
+				}
+			}
+		}
+		return false;		
 	}
 
 	public static function isAchievementUnlocked(name:String) {
-		if(achievementsMap.exists(name) && achievementsMap.get(name)) {
-			return true;
+		switch (name) {
+			case 'naughty':
+				return PreloadingState.unlockedAchv[0];
+			case 'what':
+				return PreloadingState.unlockedAchv[1];
+			default:
+				return false;
 		}
 		return false;
 	}
@@ -55,13 +61,11 @@ class Achievements {
 
 	public static function loadAchievements():Void {
 		if(FlxG.save.data != null) {
-			if(FlxG.save.data.achievementsMap != null) {
-				achievementsMap = FlxG.save.data.achievementsMap;
-			}
-			if(henchmenDeath == 0 && FlxG.save.data.henchmenDeath != null) {
-				henchmenDeath = FlxG.save.data.henchmenDeath;
-			}
-		}
+            if (FlxG.save.data.naughty != null)
+                PreloadingState.unlockedAchv[0] = FlxG.save.data.naughty;
+            if (FlxG.save.data.what != null)
+                PreloadingState.unlockedAchv[1] = FlxG.save.data.what;
+        }
 	}
 }
 
@@ -82,9 +86,11 @@ class AttachedAchievement extends FlxSprite {
 
 	public function reloadAchievementImage() {
 		if(Achievements.isAchievementUnlocked(tag)) {
-			loadGraphic(Paths.image('achievements/' + tag));
+			loadGraphic(Paths.image('achievementgrid'), true, 150, 150);
+			animation.add('icon', [Achievements.getAchievementIndex(tag)], 0, false, false);
+			animation.play('icon');
 		} else {
-			loadGraphic(Paths.image('achievements/lockedachievement'));
+			loadGraphic(Paths.image('lockedachievement'));
 		}
 		scale.set(0.7, 0.7);
 		updateHitbox();
@@ -104,13 +110,14 @@ class AchievementObject extends FlxSpriteGroup {
 	public function new(name:String, ?camera:FlxCamera = null)
 	{
 		super(x, y);
-		ClientPrefs.saveSettings();
 
 		var id:Int = Achievements.getAchievementIndex(name);
 		var achievementBG:FlxSprite = new FlxSprite(60, 50).makeGraphic(420, 120, FlxColor.BLACK);
 		achievementBG.scrollFactor.set();
 
-		var achievementIcon:FlxSprite = new FlxSprite(achievementBG.x + 10, achievementBG.y + 10).loadGraphic(Paths.image('achievements/' + name));
+		var achievementIcon:FlxSprite = new FlxSprite(achievementBG.x + 10, achievementBG.y + 10).loadGraphic(Paths.image('achievementgrid'), true, 150, 150);
+		achievementIcon.animation.add('icon', [id], 0, false, false);
+		achievementIcon.animation.play('icon');
 		achievementIcon.scrollFactor.set();
 		achievementIcon.setGraphicSize(Std.int(achievementIcon.width * (2 / 3)));
 		achievementIcon.updateHitbox();

@@ -5,7 +5,6 @@ import openfl.utils.Assets;
 import lime.utils.Assets as LimeAssets;
 import lime.utils.AssetLibrary;
 import lime.utils.AssetManifest;
-import flixel.system.FlxSound;
 #if sys
 import sys.io.File;
 import sys.FileSystem;
@@ -17,45 +16,22 @@ using StringTools;
 
 class CoolUtil
 {
-	public static var defaultDifficulties:Array<String> = [
-		'Easy',
-		'Normal',
-		'Hard'
+	// [Difficulty name, Chart file suffix]
+	public static var difficultyStuff:Array<Dynamic> = [
+		['Hard', '-hard'],
+		['Naughty', '-naughty'],
 	];
-	public static var defaultDifficulty:String = 'Normal'; //The chart that has no suffix and starting difficulty on Freeplay/Story Mode
-
-	public static var difficulties:Array<String> = [];
-
-	inline public static function quantize(f:Float, snap:Float){
-		// changed so this actually works lol
-		var m:Float = Math.fround(f * snap);
-		trace(snap);
-		return (m / snap);
-	}
-	
-	public static function getDifficultyFilePath(num:Null<Int> = null)
-	{
-		if(num == null) num = PlayState.storyDifficulty;
-
-		var fileSuffix:String = difficulties[num];
-		if(fileSuffix != defaultDifficulty)
-		{
-			fileSuffix = '-' + fileSuffix;
-		}
-		else
-		{
-			fileSuffix = '';
-		}
-		return Paths.formatToSongPath(fileSuffix);
-	}
 
 	public static function difficultyString():String
 	{
-		return difficulties[PlayState.storyDifficulty].toUpperCase();
+		return difficultyStuff[PlayState.storyDifficulty][0].toUpperCase();
 	}
 
-	inline public static function boundTo(value:Float, min:Float, max:Float):Float {
-		return Math.max(min, Math.min(max, value));
+	public static function boundTo(value:Float, min:Float, max:Float):Float {
+		var newValue:Float = value;
+		if(newValue < min) newValue = min;
+		else if(newValue > max) newValue = max;
+		return newValue;
 	}
 
 	public static function coolTextFile(path:String):Array<String>
@@ -74,18 +50,7 @@ class CoolUtil
 
 		return daList;
 	}
-	public static function listFromString(string:String):Array<String>
-	{
-		var daList:Array<String> = [];
-		daList = string.trim().split('\n');
 
-		for (i in 0...daList.length)
-		{
-			daList[i] = daList[i].trim();
-		}
-
-		return daList;
-	}
 	public static function dominantColor(sprite:flixel.FlxSprite):Int{
 		var countByColor:Map<Int, Int> = [];
 		for(col in 0...sprite.frameWidth){
@@ -124,11 +89,9 @@ class CoolUtil
 
 	//uhhhh does this even work at all? i'm starting to doubt
 	public static function precacheSound(sound:String, ?library:String = null):Void {
-		Paths.sound(sound, library);
-	}
-
-	public static function precacheMusic(sound:String, ?library:String = null):Void {
-		Paths.music(sound, library);
+		if(!Assets.cache.hasSound(Paths.sound(sound, library))) {
+			FlxG.sound.cache(Paths.sound(sound, library));
+		}
 	}
 
 	public static function browserLoad(site:String) {

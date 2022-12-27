@@ -1,4 +1,3 @@
-#if desktop
 package;
 
 import Sys.sleep;
@@ -13,12 +12,11 @@ using StringTools;
 
 class DiscordClient
 {
-	public static var isInitialized:Bool = false;
 	public function new()
 	{
 		trace("Discord Client starting...");
 		DiscordRpc.start({
-			clientID: "863222024192262205",
+			clientID: "908537810666008576",
 			onReady: onReady,
 			onError: onError,
 			onDisconnected: onDisconnected
@@ -67,7 +65,6 @@ class DiscordClient
 			new DiscordClient();
 		});
 		trace("Discord Client initialized");
-		isInitialized = true;
 	}
 
 	public static function changePresence(details:String, state:Null<String>, ?smallImageKey : String, ?hasStartTimestamp : Bool, ?endTimestamp: Float)
@@ -83,7 +80,7 @@ class DiscordClient
 			details: details,
 			state: state,
 			largeImageKey: 'icon',
-			largeImageText: "Engine Version: " + MainMenuState.psychEngineVersion,
+			largeImageText: "Christmas Carnage",
 			smallImageKey : smallImageKey,
 			// Obtained times are in milliseconds so they are divided so Discord can use it
 			startTimestamp : Std.int(startTimestamp / 1000),
@@ -101,4 +98,3 @@ class DiscordClient
 	}
 	#end
 }
-#end

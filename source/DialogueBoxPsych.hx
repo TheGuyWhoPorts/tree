@@ -12,7 +12,6 @@ import flixel.util.FlxTimer;
 import flixel.FlxSubState;
 import haxe.Json;
 import haxe.format.JsonParser;
-import Alphabet;
 #if sys
 import sys.FileSystem;
 import sys.io.File;
@@ -24,7 +23,6 @@ using StringTools;
 typedef DialogueCharacterFile = {
 	var image:String;
 	var dialogue_pos:String;
-	var no_antialiasing:Bool;
 
 	var animations:Array<DialogueAnimArray>;
 	var position:Array<Float>;
@@ -51,7 +49,6 @@ typedef DialogueLine = {
 	var text:Null<String>;
 	var boxState:Null<String>;
 	var speed:Null<Float>;
-	var sound:Null<String>;
 }
 
 class DialogueCharacter extends FlxSprite
@@ -70,8 +67,7 @@ class DialogueCharacter extends FlxSprite
 	public var startingPos:Float = 0; //For center characters, it works as the starting Y, for everything else it works as starting X
 	public var isGhost:Bool = false; //For the editor
 	public var curCharacter:String = 'bf';
-	public var skiptimer = 0;
-	public var skipping = 0;
+
 	public function new(x:Float = 0, y:Float = 0, character:String = null)
 	{
 		super(x, y);
@@ -82,9 +78,6 @@ class DialogueCharacter extends FlxSprite
 		reloadCharacterJson(character);
 		frames = Paths.getSparrowAtlas('dialogue/' + jsonFile.image);
 		reloadAnimations();
-
-		antialiasing = ClientPrefs.globalAntialiasing;
-		if(jsonFile.no_antialiasing == true) antialiasing = false;
 	}
 
 	public function reloadCharacterJson(character:String) {
@@ -165,7 +158,7 @@ class DialogueCharacter extends FlxSprite
 // TO DO: Clean code? Maybe? idk
 class DialogueBoxPsych extends FlxSpriteGroup
 {
-	var dialogue:TypedAlphabet;
+	var dialogue:Alphabet;
 	var dialogueList:DialogueFile = null;
 
 	public var finishThing:Void->Void;
@@ -181,8 +174,6 @@ class DialogueBoxPsych extends FlxSpriteGroup
 	var offsetPos:Float = -600;
 
 	var textBoxTypes:Array<String> = ['normal', 'angry'];
-	
-	var curCharacter:String = "";
 	//var charPositionList:Array<String> = ['left', 'center', 'right'];
 
 	public function new(dialogueList:DialogueFile, ?song:String = null)
@@ -221,11 +212,6 @@ class DialogueBoxPsych extends FlxSpriteGroup
 		box.updateHitbox();
 		add(box);
 
-		daText = new TypedAlphabet(DEFAULT_TEXT_X, DEFAULT_TEXT_Y, '');
-		daText.scaleX = 0.7;
-		daText.scaleY = 0.7;
-		add(daText);
-
 		startNextDialog();
 	}
 
@@ -255,8 +241,10 @@ class DialogueBoxPsych extends FlxSpriteGroup
 			var x:Float = LEFT_CHAR_X;
 			var y:Float = DEFAULT_CHAR_Y;
 			var char:DialogueCharacter = new DialogueCharacter(x + offsetPos, y, individualChar);
+
 			char.setGraphicSize(Std.int(char.width * DialogueCharacter.DEFAULT_SCALE * char.jsonFile.scale));
 			char.updateHitbox();
+			char.antialiasing = ClientPrefs.globalAntialiasing;
 			char.scrollFactor.set();
 			char.alpha = 0.00001;
 			add(char);
@@ -282,15 +270,11 @@ class DialogueBoxPsych extends FlxSpriteGroup
 		}
 	}
 
-	public static var DEFAULT_TEXT_X = 175;
-	public static var DEFAULT_TEXT_Y = 432;
-	public static var LONG_TEXT_ADD = 24;
-	var scrollSpeed = 4000;
-	var daText:TypedAlphabet = null;
+	public static var DEFAULT_TEXT_X = 90;
+	public static var DEFAULT_TEXT_Y = 430;
+	var scrollSpeed = 4500;
+	var daText:Alphabet = null;
 	var ignoreThisFrame:Bool = true; //First frame is reserved for loading dialogue images
-
-	public var closeSound:String = 'dialogueClose';
-	public var closeVolume:Float = 1;
 	override function update(elapsed:Float)
 	{
 		if(ignoreThisFrame) {
@@ -303,21 +287,17 @@ class DialogueBoxPsych extends FlxSpriteGroup
 			bgFade.alpha += 0.5 * elapsed;
 			if(bgFade.alpha > 0.5) bgFade.alpha = 0.5;
 
-		        #if android
-                        var justTouched:Bool = false;
-
-		        for (touch in FlxG.touches.list)
-		        {
-			        if (touch.justPressed)
-			        {
-				        justTouched = true;
-			        }
-		        }
-		        #end
-
-			if(PlayerSettings.player1.controls.ACCEPT #if android || justTouched #end) {
+			if(PlayerSettings.player1.controls.ACCEPT) {
 				if(!daText.finishedText) {
-					daText.finishText();
+					if(daText != null) {
+						daText.killTheTimer();
+						daText.kill();
+						remove(daText);
+						daText.destroy();
+					}
+					daText = new Alphabet(DEFAULT_TEXT_X, DEFAULT_TEXT_Y, textToType, false, true, 0.0, 0.7);
+					add(daText);
+					
 					if(skipDialogueThing != null) {
 						skipDialogueThing();
 					}
@@ -335,18 +315,16 @@ class DialogueBoxPsych extends FlxSpriteGroup
 
 					box.animation.curAnim.curFrame = box.animation.curAnim.frames.length - 1;
 					box.animation.curAnim.reverse();
-					if(daText != null)
-					{
-						daText.kill();
-						remove(daText);
-						daText.destroy();
-					}
+					daText.kill();
+					remove(daText);
+					daText.destroy();
+					daText = null;
 					updateBoxOffsets(box);
 					FlxG.sound.music.fadeOut(1, 0);
 				} else {
 					startNextDialog();
 				}
-				FlxG.sound.play(Paths.sound(closeSound), closeVolume);
+				FlxG.sound.play(Paths.sound('dialogueClose'));
 			} else if(daText.finishedText) {
 				var char:DialogueCharacter = arrayCharacters[lastCharacter];
 				if(char != null && char.animation.curAnim != null && char.animationIsLoop() && char.animation.finished) {
@@ -502,12 +480,16 @@ class DialogueBoxPsych extends FlxSpriteGroup
 		lastCharacter = character;
 		lastBoxType = boxType;
 
-		daText.text = curDialogue.text;
-		daText.sound = curDialogue.sound;
-		if(daText.sound == null || daText.sound.trim() == '') daText.sound = 'dialogue';
-		
-		daText.y = DEFAULT_TEXT_Y;
-		if(daText.rows > 2) daText.y -= LONG_TEXT_ADD;
+		if(daText != null) {
+			daText.killTheTimer();
+			daText.kill();
+			remove(daText);
+			daText.destroy();
+		}
+
+		textToType = curDialogue.text;
+		daText = new Alphabet(DEFAULT_TEXT_X, DEFAULT_TEXT_Y, textToType, false, true, curDialogue.speed, 0.7);
+		add(daText);
 
 		var char:DialogueCharacter = arrayCharacters[character];
 		if(char != null) {
@@ -527,13 +509,12 @@ class DialogueBoxPsych extends FlxSpriteGroup
 	}
 
 	public static function parseDialogue(path:String):DialogueFile {
-		#if windows
-		if(FileSystem.exists(path))
-		{
-			return cast Json.parse(File.getContent(path));
-		}
+		#if MODS_ALLOWED
+		var rawJson = File.getContent(path);
+		#else
+		var rawJson = Assets.getText(path);
 		#end
-		return cast Json.parse(Assets.getText(path));
+		return cast Json.parse(rawJson);
 	}
 
 	public static function updateBoxOffsets(box:FlxSprite) { //Had to make it static because of the editors
